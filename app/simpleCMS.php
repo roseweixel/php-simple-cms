@@ -42,11 +42,68 @@ class simpleCMS {
 
 ENTRY_DISPLAY;
 
+    $query = "select name from tags join entry_tags where tags.id=entry_tags.tag_id and entry_tags.entry_id='{$id}';";
+    $resource = mysql_query($query);
+
+    if ($resource !== false && mysql_num_rows($resource) > 0) {
+
+      $entryDisplay .= "<h3>Tags</h3>";
+
+      while ($tag = mysql_fetch_assoc($resource)) {
+        $name = stripslashes($tag['name']);
+        $tag_id = stripslashes($tag['id']);
+
+        $entryDisplay .= <<<ADD_TAG_DISPLAY
+
+          <div class="tag">
+            <h4>
+              <a href="{$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}">$name</a>
+              <form action="{$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}" method="post">
+                <input hidden value="$id" name="id" id="id" type="text" />
+                <input hidden value="$tag_id" name="tag_id" id="tag_id" type="text" />
+                <input class="btn btn-default" type="submit" value="Add Tag" />
+              </form>
+            </h4>
+          </div>
+
+
+ADD_TAG_DISPLAY;
+      }
+    }
+
+    $query = "SELECT * FROM tags";
+    $resource = mysql_query($query);
+
+    if ($resource !== false && mysql_num_rows($resource) > 0) {
+
+      $entryDisplay .= "<h3>Tags</h3>";
+
+      while ($tag = mysql_fetch_assoc($resource)) {
+        $name = stripslashes($tag['name']);
+        $tag_id = stripslashes($tag['id']);
+
+        $entryDisplay .= <<<ADD_TAG_DISPLAY
+
+          <div class="tag">
+            <h4>
+              <a href="{$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}">$name</a>
+              <form action="{$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}" method="post">
+                <input hidden value="$id" name="id" id="id" type="text" />
+                <input hidden value="$tag_id" name="tag_id" id="tag_id" type="text" />
+                <input class="btn btn-default" type="submit" value="Add Tag" />
+              </form>
+            </h4>
+          </div>
+
+ADD_TAG_DISPLAY;
+      }
+    }
+
     return $entryDisplay;
   }
 
   public function display_entries() {
-    $query = "SELECT * FROM entries ORDER BY created DESC LIMIT 3";
+    $query = "SELECT * FROM entries ORDER BY created DESC";
     $resource = mysql_query($query);
 
     if ($resource !== false && mysql_num_rows($resource) > 0) {
@@ -65,7 +122,7 @@ ENTRY_DISPLAY;
           <div class="entry">
             <div>$date</div>
             <h2>
-              <a href="{$_SERVER['PHP_SELF']}?entry={$id}">$title</a>
+              <a href="{$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}">$title</a>
               <form class="delete-form" action="{$_SERVER['PHP_SELF']}" method="post">
                 <input name="_method" type="hidden" value="delete" />
                 <input hidden value="$id" name="id" id="id" type="text" />
@@ -118,16 +175,16 @@ ADD_ENTRY_OPTION;
 ENTRY_FORM;
   }
 
-  public function delete($d) {
-    if ($d['id']) {
+  public function add_tag($p) {
+    if ($p['id'] && $p['tag_id']) {
+      $entry_id = $p['id'];
+      $tag_id = $p['tag_id'];
       $sql = <<<MySQL_QUERY
-        DELETE FROM %s
-        WHERE id={$d['id']};
+        INSERT INTO entry_tags (entry_id, tag_id) VALUES ($entry_id, $tag_id)
 MySQL_QUERY;
-      $sql = sprintf($sql, self::TABLE_NAME);
 
       if(mysql_query($sql)) {
-        header("Location: {$_SERVER['PHP_SELF']}");
+        header("Location: {$_SERVER['PHP_SELF']}?entry={$entry_id}");
       } else {
         echo 'Something went wrong!';
       }
@@ -151,7 +208,7 @@ MySQL_QUERY;
       $sql = sprintf($sql, self::TABLE_NAME, $title, $bodytext);
 
       if(mysql_query($sql)) {
-        header("Location: {$_SERVER['PHP_SELF']}?entry={$p['id']}");
+        header("Location: {$_SERVER['PHP_SELF']}?entry={$p['id']}{$p['id']}");
       } else {
         echo 'Something went wrong!';
       }
@@ -171,7 +228,7 @@ MySQL_QUERY;
 
         if(mysql_query($sql)) {
           $id = mysql_insert_id();
-          header("Location: {$_SERVER['PHP_SELF']}?entry={$id}");
+          header("Location: {$_SERVER['PHP_SELF']}?entry={$p['id']}{$id}");
         } else {
           echo 'Something went wrong!';
         }
@@ -218,9 +275,9 @@ createTags;
         entry_id INTEGER NOT NULL,
         tag_id INTEGER NOT NULL,
         id INTEGER NOT NULL AUTO_INCREMENT,
-        FOREIGN KEY (entry_id)REFERENCES entries(id)ON DELETE CASCADE
-        FOREIGN KEY (tag_id)REFERENCES tags(id) ON DELETE CASCADE
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        FOREIGN KEY fk_entry(entry_id) REFERENCES entries(id),
+        FOREIGN KEY fk_tag(tag_id) REFERENCES tags(id)
     )
 createEntryTags;
 

@@ -13,6 +13,8 @@
 
     if ($request_vars['_method'] == 'delete') {
       $obj->delete($request_vars);
+    } else if ($request_vars['tag_id']) {
+      $obj->add_tag($request_vars);
     } else {
       $obj->write($request_vars);
     }
