@@ -1,13 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>SimpleCMS</title>
-  <link rel="stylesheet" href="">
-</head>
-<body>
-
 <?php
 
   include_once('simpleCMS.php');
@@ -19,10 +9,27 @@
 
   if ($_POST)
     $obj->write($_POST);
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>SimpleCMS</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../styles/styles.css">
+</head>
+<body>
+<?php
 
-  echo ($_GET['admin'] == 1) ? $obj->display_admin() : $obj->display_public();
+  if ($_GET['admin'] == 1) {
+    echo $obj->display_admin();
+  } elseif ($_GET['entry']) {
+    echo $obj->display_entry($_GET['entry']);
+  } else {
+    echo $obj->display_public();
+  }
 
 ?>
-
 </body>
 </html>

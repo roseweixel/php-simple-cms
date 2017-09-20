@@ -6,21 +6,52 @@ class simpleCMS {
   var $password;
   var $table;
 
+  const TABLE_NAME = 'entries';
+
+  public function display_entry($id) {
+    $query = "SELECT * FROM entries WHERE id = $id";
+    $resource = mysql_query($query);
+
+    $entry = mysql_fetch_assoc($resource);
+    $title = stripslashes($entry['title']);
+    $bodytext = stripslashes($entry['bodytext']);
+
+    $entryDisplay .= <<<ENTRY_DISPLAY
+
+      <h3><a href="{$_SERVER['PHP_SELF']}">Back To View All Entries</a></h3>
+
+      <h2>$title</h2>
+      <p>
+        $bodytext
+      </p>
+
+      <form action="{$_SERVER['PHP_SELF']}" method="post">
+        <label for="title">Title:</label>
+        <input hidden value="$id" name="id" id="id" type="text" />
+        <input value="$title" name="title" id="title" type="text" maxlength="150" />
+        <label for="bodytext">Body Text:</label>
+        <textarea name="bodytext" id="bodytext">$bodytext</textarea>
+        <input type="submit" value="Edit This Entry!" />
+      </form>
+
+ENTRY_DISPLAY;
+
+    return $entryDisplay;
+  }
+
   public function display_public() {
-    $query = "SELECT * FROM testDB ORDER BY created DESC LIMIT 3";
+    $query = "SELECT * FROM entries ORDER BY created DESC LIMIT 3";
     $resource = mysql_query($query);
 
     if ($resource !== false && mysql_num_rows($resource) > 0) {
-      while ($entriesArray = mysql_fetch_assoc($resource)) {
-        $title = stripslashes($entriesArray['title']);
-        $bodytext = stripslashes($entriesArray['bodytext']);
+      while ($entry = mysql_fetch_assoc($resource)) {
+        $title = stripslashes($entry['title']);
+        $bodytext = stripslashes($entry['bodytext']);
+        $id = stripslashes($entry['id']);
 
         $entryDisplay .= <<<ENTRY_DISPLAY
 
-          <h2>$title</h2>
-          <p>
-            $bodytext
-          </p>
+          <h2><a href="{$_SERVER['PHP_SELF']}?entry={$id}">$title</a></h2>
 
 ENTRY_DISPLAY;
       }
@@ -66,12 +97,43 @@ ADMIN_FORM;
       $title = mysql_real_escape_string($p['title']);
     if ($p['bodytext'])
       $bodytext = mysql_real_escape_string($p['bodytext']);
-    if ($title && $bodytext) {
-      $created = time();
-      $sql = "INSERT INTO testDB VALUES('$title', '$bodytext', '$created')";
-      return mysql_query($sql);
+    if ($p['id']) {
+      $sql = <<<MySQL_QUERY
+        UPDATE %s
+        SET title='%s', bodytext='%s'
+        WHERE id={$p['id']};
+MySQL_QUERY;
+
+      $sql = sprintf($sql, self::TABLE_NAME, $title, $bodytext);
+
+      if(mysql_query($sql)) {
+        header("Location: {$_SERVER['PHP_SELF']}?entry={$p['id']}");
+      } else {
+        echo 'Something went wrong!';
+      }
     } else {
-      return false;
+      if ($title && $bodytext) {
+        $created = time();
+
+        $sql = <<<MySQL_QUERY
+          INSERT INTO %s (title, bodytext, created) VALUES(
+            '%s',
+            '%s',
+            '%s'
+        )
+MySQL_QUERY;
+
+        $sql = sprintf($sql, self::TABLE_NAME, $title, $bodytext, $created);
+
+        if(mysql_query($sql)) {
+          $id = mysql_insert_id();
+          header("Location: {$_SERVER['PHP_SELF']}?entry={$id}");
+        } else {
+          echo 'Something went wrong!';
+        }
+      } else {
+        return false;
+      }
     }
   }
 
@@ -90,12 +152,16 @@ ADMIN_FORM;
 
   private function buildDB() {
     $sql = <<<MySQL_QUERY
-      CREATE TABLE IF NOT EXISTS testDB (
+      CREATE TABLE IF NOT EXISTS %s (
         title VARCHAR(150),
         bodytext TEXT,
-        created VARCHAR(100)
+        created VARCHAR(100),
+        id MEDIUMINT NOT NULL AUTO_INCREMENT,
+        PRIMARY KEY (id)
     )
 MySQL_QUERY;
+
+    $sql = sprintf($sql, self::TABLE_NAME);
 
     return mysql_query($sql);
   }
