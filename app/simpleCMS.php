@@ -26,12 +26,18 @@ class simpleCMS {
       </p>
 
       <form action="{$_SERVER['PHP_SELF']}" method="post">
-        <label for="title">Title:</label>
         <input hidden value="$id" name="id" id="id" type="text" />
-        <input value="$title" name="title" id="title" type="text" maxlength="150" />
-        <label for="bodytext">Body Text:</label>
-        <textarea name="bodytext" id="bodytext">$bodytext</textarea>
-        <input type="submit" value="Edit This Entry!" />
+
+        <div class="form-group">
+          <label class="control-label" for="title">Title:</label>
+          <input class="form-control" value="$title" name="title" id="title" type="text" maxlength="150" />
+        </div>
+        <div class="form-group">
+          <label class="control-label" for="bodytext">Body Text:</label>
+          <textarea class="form-control" name="bodytext" id="bodytext">$bodytext</textarea>
+        </div>
+
+        <input class="btn btn-primary" type="submit" value="Save Changes" />
       </form>
 
 ENTRY_DISPLAY;
@@ -39,19 +45,35 @@ ENTRY_DISPLAY;
     return $entryDisplay;
   }
 
-  public function display_public() {
+  public function display_entries() {
     $query = "SELECT * FROM entries ORDER BY created DESC LIMIT 3";
     $resource = mysql_query($query);
 
     if ($resource !== false && mysql_num_rows($resource) > 0) {
+
+      $entryDisplay = "<h1>Your Entries</h1>";
+
       while ($entry = mysql_fetch_assoc($resource)) {
         $title = stripslashes($entry['title']);
         $bodytext = stripslashes($entry['bodytext']);
+        $created = stripslashes($entry['created']);
         $id = stripslashes($entry['id']);
+        $date = gmdate("M j, Y H:i:s ", $created);
 
         $entryDisplay .= <<<ENTRY_DISPLAY
 
-          <h2><a href="{$_SERVER['PHP_SELF']}?entry={$id}">$title</a></h2>
+          <div class="entry">
+            <div>$date</div>
+            <h2>
+              <a href="{$_SERVER['PHP_SELF']}?entry={$id}">$title</a>
+              <form class="delete-form" action="{$_SERVER['PHP_SELF']}" method="post">
+                <input name="_method" type="hidden" value="delete" />
+                <input hidden value="$id" name="id" id="id" type="text" />
+                <input class="btn btn-default" id="delete" name="delete" type="submit" value="Delete" />
+              </form>
+            </h2>
+          </div>
+
 
 ENTRY_DISPLAY;
       }
@@ -67,29 +89,51 @@ ENTRY_DISPLAY;
 ENTRY_DISPLAY;
     }
 
-    $entryDisplay .= <<<ADMIN_OPTION
+    $entryDisplay .= <<<ADD_ENTRY_OPTION
 
       <p class="admin_link">
-        <a href="{$_SERVER['PHP_SELF']}?admin=1">Add a New Entry</a>
+        <a class="btn btn-primary" href="{$_SERVER['PHP_SELF']}?addEntry=1">Add a New Entry</a>
       </p>
 
-ADMIN_OPTION;
+ADD_ENTRY_OPTION;
 
     return $entryDisplay;
   }
 
-  public function display_admin() {
-    return <<<ADMIN_FORM
-
+  public function display_entry_form() {
+    return <<<ENTRY_FORM
+      <h1>Create An Entry</h1>
       <form action="{$_SERVER['PHP_SELF']}" method="post">
-        <label for="title">Title:</label>
-        <input name="title" id="title" type="text" maxlength="150" />
-        <label for="bodytext">Body Text:</label>
-        <textarea name="bodytext" id="bodytext"></textarea>
-        <input type="submit" value="Create This Entry!" />
+        <div class="form-group">
+          <label class="control-label" for="title">Title:</label>
+          <input class="form-control" name="title" id="title" type="text" maxlength="150" />
+        </div>
+        <div class="form-group">
+          <label class="control-label" for="bodytext">Body Text:</label>
+          <textarea class="form-control" name="bodytext" id="bodytext"></textarea>
+        </div>
+        <input class="btn btn-primary" type="submit" value="Create This Entry!" />
       </form>
 
-ADMIN_FORM;
+ENTRY_FORM;
+  }
+
+  public function delete($d) {
+    if ($d['id']) {
+      $sql = <<<MySQL_QUERY
+        DELETE FROM %s
+        WHERE id={$d['id']};
+MySQL_QUERY;
+      $sql = sprintf($sql, self::TABLE_NAME);
+
+      if(mysql_query($sql)) {
+        header("Location: {$_SERVER['PHP_SELF']}");
+      } else {
+        echo 'Something went wrong!';
+      }
+    } else {
+      echo "Something went wrong!";
+    }
   }
 
   public function write($p) {
@@ -151,19 +195,56 @@ MySQL_QUERY;
   }
 
   private function buildDB() {
-    $sql = <<<MySQL_QUERY
-      CREATE TABLE IF NOT EXISTS %s (
+    $createEntries = <<<createEntries
+      CREATE TABLE IF NOT EXISTS entries (
         title VARCHAR(150),
         bodytext TEXT,
         created VARCHAR(100),
-        id MEDIUMINT NOT NULL AUTO_INCREMENT,
+        id INTEGER NOT NULL AUTO_INCREMENT,
         PRIMARY KEY (id)
     )
-MySQL_QUERY;
+createEntries;
 
-    $sql = sprintf($sql, self::TABLE_NAME);
+    $createTags = <<<createTags
+      CREATE TABLE IF NOT EXISTS tags (
+        name VARCHAR(150) NOT NULL,
+        id INTEGER NOT NULL AUTO_INCREMENT,
+        PRIMARY KEY (id)
+    )
+createTags;
 
-    return mysql_query($sql);
+    $createEntryTags = <<<createEntryTags
+      CREATE TABLE IF NOT EXISTS entry_tags (
+        entry_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        id INTEGER NOT NULL AUTO_INCREMENT,
+        FOREIGN KEY (entry_id)REFERENCES entries(id)ON DELETE CASCADE
+        FOREIGN KEY (tag_id)REFERENCES tags(id) ON DELETE CASCADE
+        PRIMARY KEY (id)
+    )
+createEntryTags;
+
+    $insertPHP = <<<insertPHP
+      INSERT INTO tags(name)
+      SELECT 'php' FROM dual WHERE NOT EXISTS (SELECT * from tags where name='php');
+insertPHP;
+
+    $insertRuby = <<<insertRuby
+      INSERT INTO tags(name)
+      SELECT 'ruby' FROM dual WHERE NOT EXISTS (SELECT * from tags where name='ruby');
+insertRuby;
+
+    $insertJavaScript = <<<insertJavaScript
+      INSERT INTO tags(name)
+      SELECT 'javascript' FROM dual WHERE NOT EXISTS (SELECT * from tags where name='javascript');
+insertJavaScript;
+
+    mysql_query($createEntries);
+    mysql_query($createTags);
+    mysql_query($createEntryTags);
+    mysql_query($insertPHP);
+    mysql_query($insertRuby);
+    mysql_query($insertJavaScript);
   }
 }
 

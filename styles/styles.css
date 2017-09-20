@@ -1,3 +1,23 @@
 body {
   margin: 100px;
 }
+
+.delete-form {
+  display: inline-block;
+}
+
+.entry:not(:first-of-type) {
+  margin-top: 20px;
+}
+
+.entry h2 {
+  margin-top: 10px;
+}
+
+.entry:first-of-type {
+  margin-top: 50px;
+}
+
+.entry:last-of-type {
+  margin-bottom: 50px;
+}

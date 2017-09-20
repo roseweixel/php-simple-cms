@@ -1,5 +1,4 @@
 <?php
-
   include_once('simpleCMS.php');
   $obj = new simpleCMS();
   $obj->host = 'localhost:3306';
@@ -8,7 +7,15 @@
   $obj->connect();
 
   if ($_POST)
-    $obj->write($_POST);
+    $request_vars = array();
+    $request_contents = file_get_contents('php://input');
+    parse_str($request_contents, $request_vars);
+
+    if ($request_vars['_method'] == 'delete') {
+      $obj->delete($request_vars);
+    } else {
+      $obj->write($request_vars);
+    }
 ?>
 <!DOCTYPE html>
 <html>
@@ -22,12 +29,12 @@
 <body>
 <?php
 
-  if ($_GET['admin'] == 1) {
-    echo $obj->display_admin();
+  if ($_GET['addEntry'] === '1') {
+    echo $obj->display_entry_form();
   } elseif ($_GET['entry']) {
     echo $obj->display_entry($_GET['entry']);
   } else {
-    echo $obj->display_public();
+    echo $obj->display_entries();
   }
 
 ?>
